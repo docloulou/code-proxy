@@ -28,11 +28,7 @@ func (p *AnthropicAPI) Category() string   { return "api" }
 func (p *AnthropicAPI) IsAvailable() bool  { return true }
 
 func (p *AnthropicAPI) Models() []Model {
-	return []Model{
-		{ID: "anthropic/claude-opus-4-6", Name: "Claude Opus 4.6", OwnedBy: "anthropic"},
-		{ID: "anthropic/claude-sonnet-4-6", Name: "Claude Sonnet 4.6", OwnedBy: "anthropic"},
-		{ID: "anthropic/claude-haiku-4-5", Name: "Claude Haiku 4.5", OwnedBy: "anthropic"},
-	}
+	return nil
 }
 
 func (p *AnthropicAPI) Execute(ctx context.Context, req *Request) (<-chan Event, error) {

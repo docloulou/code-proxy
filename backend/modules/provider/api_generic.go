@@ -20,20 +20,7 @@ func (p *GenericOpenAI) Category() string  { return "api" }
 func (p *GenericOpenAI) IsAvailable() bool { return true }
 
 func (p *GenericOpenAI) Models() []Model {
-	return []Model{
-		// DeepSeek
-		{ID: "deepseek/deepseek-chat", Name: "DeepSeek Chat", OwnedBy: "deepseek"},
-		{ID: "deepseek/deepseek-coder", Name: "DeepSeek Coder", OwnedBy: "deepseek"},
-		{ID: "deepseek/deepseek-reasoner", Name: "DeepSeek Reasoner", OwnedBy: "deepseek"},
-		// Groq
-		{ID: "groq/llama-3.3-70b-versatile", Name: "Llama 3.3 70B (Groq)", OwnedBy: "groq"},
-		{ID: "groq/llama-4-maverick-17b-128e-instruct", Name: "Llama 4 Maverick (Groq)", OwnedBy: "groq"},
-		// Together
-		{ID: "together/meta-llama/Llama-3.3-70B-Instruct-Turbo", Name: "Llama 3.3 70B (Together)", OwnedBy: "together"},
-		{ID: "together/deepseek-ai/DeepSeek-R1", Name: "DeepSeek R1 (Together)", OwnedBy: "together"},
-		// Ollama (local)
-		{ID: "ollama/llama3.3", Name: "Llama 3.3 (Ollama)", OwnedBy: "ollama"},
-	}
+	return nil
 }
 
 func (p *GenericOpenAI) Execute(ctx context.Context, req *Request) (<-chan Event, error) {

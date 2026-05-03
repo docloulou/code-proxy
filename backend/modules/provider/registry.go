@@ -1,23 +1,46 @@
 package provider
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
+	"time"
 )
+
+// DefaultModelCacheTTL is how long discovered models are cached before re-fetching.
+const DefaultModelCacheTTL = 1 * time.Hour
 
 // Registry manages registered providers and resolves model → provider
 type Registry struct {
-	mu        sync.RWMutex
-	providers map[string]Provider // providerType -> Provider instance
-	defaults  string             // default provider type
+	mu          sync.RWMutex
+	providers   map[string]Provider
+	defaults    string
+	cache       *modelCache
+	accountProv AccountProvider
 }
 
-// NewRegistry creates an empty registry
+// NewRegistry creates an empty registry with a default model-cache TTL.
 func NewRegistry() *Registry {
 	return &Registry{
 		providers: make(map[string]Provider),
+		cache:     newModelCache(DefaultModelCacheTTL),
 	}
+}
+
+// SetAccountProvider wires the account source used for dynamic model discovery.
+func (r *Registry) SetAccountProvider(ap AccountProvider) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.accountProv = ap
+}
+
+// SetCacheTTL overrides the default discovery cache TTL.
+func (r *Registry) SetCacheTTL(ttl time.Duration) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.cache = newModelCache(ttl)
 }
 
 // Register adds a provider to the registry
@@ -75,26 +98,99 @@ func (r *Registry) ResolveProvider(model string) (Provider, string, string, erro
 	return nil, "", "", fmt.Errorf("no providers registered")
 }
 
-// AllModels returns all models from all providers
+// AllModels returns the merged model list across all providers, using the
+// dynamic discovery cache when available and falling back to static Models().
 func (r *Registry) AllModels() []Model {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
+	providers := make(map[string]Provider, len(r.providers))
+	for k, v := range r.providers {
+		providers[k] = v
+	}
+	cache := r.cache
+	accounts := r.accountProv
+	r.mu.RUnlock()
 
 	var models []Model
-	for _, p := range r.providers {
-		models = append(models, p.Models()...)
+	for pt, p := range providers {
+		models = append(models, modelsForProvider(pt, p, cache, accounts)...)
 	}
 	return models
 }
 
-// ModelsForProvider returns models for a specific provider
+// ModelsForProvider returns models for a specific provider (cached when possible).
 func (r *Registry) ModelsForProvider(providerType string) []Model {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
+	p, ok := r.providers[providerType]
+	cache := r.cache
+	accounts := r.accountProv
+	r.mu.RUnlock()
 
-	if p, ok := r.providers[providerType]; ok {
-		return p.Models()
+	if !ok {
+		return nil
 	}
+	return modelsForProvider(providerType, p, cache, accounts)
+}
+
+// RefreshModels invalidates the cache and re-runs DiscoverModels on every provider
+// that implements ModelDiscoverer. Returns a map of provider types to discovery errors
+// (empty for successes).
+func (r *Registry) RefreshModels(ctx context.Context) map[string]error {
+	r.mu.RLock()
+	providers := make(map[string]Provider, len(r.providers))
+	for k, v := range r.providers {
+		providers[k] = v
+	}
+	cache := r.cache
+	accounts := r.accountProv
+	r.mu.RUnlock()
+
+	if cache != nil {
+		cache.invalidateAll()
+	}
+
+	errs := make(map[string]error)
+	for pt, p := range providers {
+		disc, ok := p.(ModelDiscoverer)
+		if !ok {
+			continue
+		}
+		discCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		models, err := disc.DiscoverModels(discCtx, accounts)
+		cancel()
+		if err != nil {
+			errs[pt] = err
+			log.Printf("[REGISTRY] Discover %s failed: %v", pt, err)
+			continue
+		}
+		if cache != nil {
+			cache.set(pt, models)
+		}
+		log.Printf("[REGISTRY] Discover %s: %d models cached", pt, len(models))
+	}
+	return errs
+}
+
+func modelsForProvider(providerType string, p Provider, cache *modelCache, accounts AccountProvider) []Model {
+	if cache != nil {
+		if cached, ok := cache.get(providerType); ok {
+			return cached
+		}
+	}
+
+	if disc, ok := p.(ModelDiscoverer); ok {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		models, err := disc.DiscoverModels(ctx, accounts)
+		if err != nil {
+			log.Printf("[REGISTRY] Discover %s on-demand failed: %v", providerType, err)
+			return nil
+		}
+		if cache != nil {
+			cache.set(providerType, models)
+		}
+		return models
+	}
+
 	return nil
 }
 

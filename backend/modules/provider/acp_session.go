@@ -36,7 +36,7 @@ type acpManager struct {
 func newACPManager(workDir, acpCommand, acpArgs string) *acpManager {
 	cmd := acpCommand
 	if cmd == "" {
-		cmd = "claude-code-acp"
+		cmd = claudeAgentACPBinary
 	}
 
 	var args []string

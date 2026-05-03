@@ -26,12 +26,7 @@ func (p *GeminiAPI) Category() string   { return "api" }
 func (p *GeminiAPI) IsAvailable() bool  { return true }
 
 func (p *GeminiAPI) Models() []Model {
-	return []Model{
-		{ID: "gemini/gemini-2.5-pro", Name: "Gemini 2.5 Pro", OwnedBy: "google"},
-		{ID: "gemini/gemini-2.5-flash", Name: "Gemini 2.5 Flash", OwnedBy: "google"},
-		{ID: "gemini/gemini-2.5-flash-lite", Name: "Gemini 2.5 Flash Lite", OwnedBy: "google"},
-		{ID: "gemini/gemini-2.0-flash", Name: "Gemini 2.0 Flash", OwnedBy: "google"},
-	}
+	return nil
 }
 
 func (p *GeminiAPI) Execute(ctx context.Context, req *Request) (<-chan Event, error) {

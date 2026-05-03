@@ -56,6 +56,9 @@ func getAccountQuota(w http.ResponseWriter, db *database.DB, id string) {
 	default:
 		result = QuotaResult{Message: fmt.Sprintf("Usage quota not available for %s", acct.ProviderType)}
 	}
+	if result.Quotas == nil {
+		result.Quotas = []QuotaInfo{}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
@@ -279,11 +282,11 @@ func getAntigravityQuota(acct *database.Account, db *database.DB) QuotaResult {
 	// Important models to track
 	importantModels := map[string]bool{
 		"claude-opus-4-6-thinking": true,
-		"claude-sonnet-4-6":       true,
-		"gemini-3.1-pro-high":     true,
-		"gemini-3.1-pro-low":      true,
-		"gemini-3-flash":          true,
-		"gpt-oss-120b-medium":     true,
+		"claude-sonnet-4-6":        true,
+		"gemini-3.1-pro-high":      true,
+		"gemini-3.1-pro-low":       true,
+		"gemini-3-flash":           true,
+		"gpt-oss-120b-medium":      true,
 	}
 
 	if models, ok := data["models"].(map[string]any); ok {

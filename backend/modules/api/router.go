@@ -137,6 +137,7 @@ func (s *Server) registerRoutes() {
 	// OpenAI-compatible API
 	s.mux.HandleFunc("/v1/chat/completions", handleChat(s.registry, s.acctMgr, s.defaultModel, s.db))
 	s.mux.HandleFunc("/v1/models", s.handleModels)
+	s.mux.HandleFunc("/v1/models/refresh", s.handleModelsRefresh)
 	s.mux.HandleFunc("/v1/", s.handleV1Info)
 
 	// Health
@@ -219,6 +220,24 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ModelsResponse{
 		Object: "list",
 		Data:   models,
+	})
+}
+
+func (s *Server) handleModelsRefresh(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte(`{"error":{"message":"use POST","type":"invalid_request"}}`))
+		return
+	}
+	errs := s.registry.RefreshModels(r.Context())
+	errMap := make(map[string]string, len(errs))
+	for k, v := range errs {
+		errMap[k] = v.Error()
+	}
+	json.NewEncoder(w).Encode(map[string]any{
+		"refreshed": true,
+		"errors":    errMap,
 	})
 }
 

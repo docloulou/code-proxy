@@ -35,6 +35,22 @@ func (m *Manager) SetStrategy(strategy string) {
 	m.strategy = strategy
 }
 
+// GetAvailableAccounts returns active, non-cooled-down accounts for a provider type.
+func (m *Manager) GetAvailableAccounts(providerType string) ([]*provider.Account, error) {
+	if m.db == nil {
+		return nil, nil
+	}
+	accounts, err := m.db.GetAvailableAccounts(providerType)
+	if err != nil {
+		return nil, fmt.Errorf("fetch accounts: %w", err)
+	}
+	out := make([]*provider.Account, 0, len(accounts))
+	for i := range accounts {
+		out = append(out, dbAccountToProvider(&accounts[i]))
+	}
+	return out, nil
+}
+
 // Select picks the next available account for the provider+model
 func (m *Manager) Select(providerType, model string) (*provider.Account, error) {
 	if m.db == nil {

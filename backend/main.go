@@ -65,10 +65,18 @@ func main() {
 	// Account manager
 	acctMgr := account.NewManager(db)
 
+	registry.SetAccountProvider(acctMgr)
+
 	// Background token refresh (every 5 minutes)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go acctMgr.RefreshLoop(ctx, 5*time.Minute, nil) // refreshFn is configured once OAuth is ready
+
+	go func() {
+		discCtx, discCancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer discCancel()
+		registry.RefreshModels(discCtx)
+	}()
 
 	// Tunnel manager
 	tunnelMgr := tunnel.NewManager(cfg.Port, cfg.DataDir, func(url string) {
